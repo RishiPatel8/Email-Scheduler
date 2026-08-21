@@ -1,11 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const firebase_1 = require("./src/services/firebase");
-console.log("Firebase initialized:", firebase_1.initialized);
-if (firebase_1.auth) {
-    console.log("Auth is present");
+const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+
+try {
+  const app = initializeApp();
+  const auth = getAuth(app);
+  auth.verifyIdToken('fake-token').catch(e => console.log('Error verifying:', e.message));
+} catch (e) {
+  console.log('Error initializing:', e.message);
 }
-else {
-    console.log("Auth is NOT present");
-}
-//# sourceMappingURL=test-firebase.js.map

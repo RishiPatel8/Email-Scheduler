@@ -161,7 +161,7 @@ vitest_1.vi.mock('../config/redis', () => ({
             // Check that DB was updated back to QUEUED
             (0, vitest_1.expect)(db_1.prisma.emailRecipient.update).toHaveBeenCalledWith({
                 where: { id: 'rec-limit' },
-                data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.' }
+                data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.', dispatchStartedAt: null }
             });
             // SMTP should never be called
             (0, vitest_1.expect)(email_1.sendEmail).not.toHaveBeenCalled();

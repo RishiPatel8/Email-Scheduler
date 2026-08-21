@@ -36,8 +36,9 @@ app.use('/api/campaigns', campaign_1.default);
 // Error Handling
 app.use(error_1.errorHandler);
 if (require.main === module) {
-    app.listen(env_1.env.PORT, () => {
-        logger_1.logger.info(`API Server running on port ${env_1.env.PORT}`);
+    const port = process.env.PORT || env_1.env.PORT || 3000;
+    app.listen(Number(port), '0.0.0.0', () => {
+        logger_1.logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);
     });
 }
 exports.default = app;

@@ -38,8 +38,9 @@ app.use('/api/campaigns', campaignRoutes);
 app.use(errorHandler);
 
 if (require.main === module) {
-  app.listen(env.PORT, () => {
-    logger.info(`API Server running on port ${env.PORT}`);
+  const port = process.env.PORT || env.PORT || 3000;
+  app.listen(Number(port), '0.0.0.0', () => {
+    logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);
   });
 }
 

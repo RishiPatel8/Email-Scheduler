@@ -8,7 +8,7 @@
     "dev:worker": "nodemon src/worker.ts",
     "build": "tsc",
     "start:api": "node dist/api.js",
-    "prestart": "node node_modules/prisma/build/index.js generate",
+    "prestart": "node node_modules/prisma/build/index.js generate && node node_modules/prisma/build/index.js migrate deploy",
     "start": "node dist/api.js",
     "start:worker": "node dist/worker.js",
     "test": "vitest run",

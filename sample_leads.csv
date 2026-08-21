@@ -1,0 +1,6 @@
+email,name
+test.user1@example.com,John Doe
+test.user2@example.com,Jane Doe
+test.user1@example.com,Duplicate John
+invalid-email-format,Bad Lead
+test.user3@example.com,Alice Smith

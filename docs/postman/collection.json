@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "Email Job Scheduler API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/api/health",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Current User Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/auth/me",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "auth",
+            "me"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Spring Promotion Campaign\",\n    \"subject\": \"Exclusive discount inside!\",\n    \"body\": \"Hi recipient,\\n\\nWe are offering a 20% discount on all spring items this week. Don't miss out!\",\n    \"startTime\": \"2026-08-20T20:00:00Z\",\n    \"minimumDelay\": \"2000\",\n    \"hourlyLimit\": \"200\",\n    \"leads\": [\n        \"recipient1@example.com\",\n        \"recipient2@example.com\"\n    ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3001/api/campaigns",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "campaigns"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Scheduled Emails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/campaigns/scheduled",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "campaigns",
+            "scheduled"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Sent Emails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/campaigns/sent",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "campaigns",
+            "sent"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Campaign Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/campaigns/stats",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3001",
+          "path": [
+            "api",
+            "campaigns",
+            "stats"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

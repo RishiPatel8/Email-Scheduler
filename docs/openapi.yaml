@@ -1,0 +1,342 @@
+openapi: 3.0.0
+info:
+  title: Email Job Scheduler API
+  description: |
+    Production-ready API for scheduling email campaigns using Express, TypeScript, BullMQ, Redis, and MySQL.
+    All protected endpoints require a verified Firebase ID Token provided as a Bearer token in the `Authorization` header.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/api
+    description: Local development server
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check API server liveness and database connections.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    example: "2026-08-20T14:00:00Z"
+
+  /auth/me:
+    get:
+      summary: Get Current User Profile
+      description: Fetches profile info of the authenticated user. Automatically creates/finds user in database on verification.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /campaigns:
+    post:
+      summary: Create and Schedule Campaign
+      description: Schedules a new bulk email campaign space out according to min delay and hourly limit.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - subject
+                - body
+                - startTime
+                - leads
+              properties:
+                name:
+                  type: string
+                  example: Spring Newsletter
+                subject:
+                  type: string
+                  example: Spring has arrived!
+                body:
+                  type: string
+                  example: Check out our new catalogue...
+                startTime:
+                  type: string
+                  format: date-time
+                  example: "2026-08-20T20:00:00.000Z"
+                minimumDelay:
+                  type: string
+                  example: "2000"
+                hourlyLimit:
+                  type: string
+                  example: "200"
+                leads:
+                  type: array
+                  items:
+                    type: string
+                  example: ["recipient1@example.com", "recipient2@example.com"]
+      responses:
+        '201':
+          description: Campaign created and emails queued in BullMQ.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      campaignId:
+                        type: string
+                        format: uuid
+                      recipientsScheduled:
+                        type: integer
+                        example: 2
+        '400':
+          description: Validation error or missing fields.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /campaigns/preview:
+    post:
+      summary: Preview CSV/TXT Leads
+      description: Uploads a list of leads file (CSV/TXT), normalizes emails, deduplicates, and reports validation stats.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File parsed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 5
+                      valid:
+                        type: array
+                        items:
+                          type: string
+                        example: ["a@example.com", "b@example.com"]
+                      invalid:
+                        type: array
+                        items:
+                          type: object
+                        example: [{ "email": "invalid-email", "reason": "Invalid format" }]
+                      duplicates:
+                        type: integer
+                        example: 1
+        '400':
+          description: No file uploaded or invalid file format.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /campaigns/scheduled:
+    get:
+      summary: Get Scheduled Emails
+      description: Returns a list of scheduled email jobs for the logged-in user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of scheduled emails.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmailRecipient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /campaigns/sent:
+    get:
+      summary: Get Sent and Failed Emails
+      description: Returns a list of sent or failed email deliveries.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of sent/failed emails.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmailRecipient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /campaigns/stats:
+    get:
+      summary: Get Campaign Statistics
+      description: Returns aggregate counts of campaigns and scheduled/sent/failed emails.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Aggregate statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      scheduledCount:
+                        type: integer
+                        example: 10
+                      sentCount:
+                        type: integer
+                        example: 240
+                      failedCount:
+                        type: integer
+                        example: 2
+                      totalCampaigns:
+                        type: integer
+                        example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Use the ID token retrieved from Firebase client Authentication.
+  responses:
+    Unauthorized:
+      description: Authentication failed due to missing, expired or invalid Firebase ID token.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: "Unauthorized - Invalid or expired token"
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        firebaseUid:
+          type: string
+          example: AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          nullable: true
+          example: John Doe
+        picture:
+          type: string
+          format: uri
+          nullable: true
+          example: https://lh3.googleusercontent.com/a/AGNmyx...
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-08-20T12:00:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-08-20T13:00:00Z
+    EmailRecipient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        campaignId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [PENDING, QUEUED, SENDING, SENT, FAILED]
+        scheduledTime:
+          type: string
+          format: date-time
+        sentTime:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        campaign:
+          type: object
+          properties:
+            name:
+              type: string
+            subject:
+              type: string

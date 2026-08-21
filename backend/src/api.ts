@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { prisma } from './config/db';
+import { exec } from 'child_process';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import path from 'path';
@@ -26,8 +28,28 @@ try {
 }
 
 // Health check
-app.get('/api/health', (req: express.Request, res: express.Response) => {
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint to check database connection
+app.get('/api/debug/db', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', message: 'Database connected successfully!' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message, stack: error.stack });
+  }
+});
+
+// Debug endpoint to manually trigger database migrations
+app.get('/api/debug/migrate', (req, res) => {
+  exec('node node_modules/prisma/build/index.js migrate deploy', (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).json({ status: 'error', message: error.message, stdout, stderr });
+    }
+    res.json({ status: 'success', stdout, stderr });
+  });
 });
 
 // Routes

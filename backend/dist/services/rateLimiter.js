@@ -8,7 +8,8 @@ const GLOBAL_LAST_SEND_KEY = 'last_email_sent_time';
  * Atomically checks the hourly email count and increments it if it is below the limit.
  * Uses a Redis Lua script to guarantee atomicity across multiple worker instances.
  */
-const checkAndIncrementRateLimit = async (maxLimit) => {
+const checkAndIncrementRateLimit = async (maxLimit, campaignId) => {
+    const RATE_LIMIT_KEY = `hourly_email_limit:${campaignId}`;
     const script = `
     local count = redis.call("GET", KEYS[1])
     local max = tonumber(ARGV[1])
@@ -29,8 +30,9 @@ exports.checkAndIncrementRateLimit = checkAndIncrementRateLimit;
  * Decrements the hourly email count.
  * Useful to revert the rate limit increment if an email fails to transmit.
  */
-const decrementRateLimit = async () => {
+const decrementRateLimit = async (campaignId) => {
     try {
+        const RATE_LIMIT_KEY = `hourly_email_limit:${campaignId}`;
         await redis_1.redisConnection.decr(RATE_LIMIT_KEY);
     }
     catch (err) {
@@ -42,7 +44,8 @@ exports.decrementRateLimit = decrementRateLimit;
  * Atomically enforces a minimum delay between sequential email dispatches globally.
  * Uses a Redis Lua script to coordinate and delay worker execution across concurrency bounds.
  */
-const enforceMinimumDelay = async (minDelay) => {
+const enforceMinimumDelay = async (minDelay, campaignId) => {
+    const GLOBAL_LAST_SEND_KEY = `last_email_sent_time:${campaignId}`;
     const now = Date.now();
     const script = `
     local last_sent = redis.call("GET", KEYS[1])

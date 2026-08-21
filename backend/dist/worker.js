@@ -78,41 +78,49 @@ const processEmailJob = async (job) => {
     // Resolve campaign configurations with safe defaults
     const minDelay = recipient.campaign.minimumDelay ?? parseInt(env_1.env.DEFAULT_EMAIL_DELAY_MS, 10);
     const maxLimit = recipient.campaign.hourlyLimit ?? parseInt(env_1.env.MAX_EMAILS_PER_HOUR, 10);
-    // 2. Hourly Rate Limit Check (Atomic Lua-backed)
-    const canSend = await (0, rateLimiter_1.checkAndIncrementRateLimit)(maxLimit);
-    if (!canSend) {
-        logger_1.logger.warn(`Hourly rate limit reached for job ${job.id}. Rescheduling.`);
-        const ttl = await redis_1.redisConnection.ttl('hourly_email_limit');
-        const delayMs = (ttl > 0 ? ttl : 60) * 1000;
-        // Reschedule job using a unique incremented key signature
-        await (0, bullmq_2.scheduleEmailJob)(`${job.id}-rescheduled-${Date.now()}`, job.data, delayMs);
-        // Mark as queued again in DB
-        await db_1.prisma.emailRecipient.update({
-            where: { id: recipientId },
-            data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.' }
-        });
-        return { success: false, reason: 'rate_limit', rescheduled: true };
-    }
-    // 3. Minimum Delay Enforcement (Atomic Lua-backed)
-    const waitTime = await (0, rateLimiter_1.enforceMinimumDelay)(minDelay);
-    if (waitTime > 0) {
-        logger_1.logger.info(`Enforcing minimum delay of ${waitTime}ms for job ${job.id}`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    // 4. Send Email
     let smtpMessageId = '';
     try {
-        const info = await (0, email_1.sendEmail)(email, recipient.campaign.subject, recipient.campaign.body);
-        if (info && info.messageId) {
-            smtpMessageId = info.messageId;
+        // 2. Hourly Rate Limit Check (Atomic Lua-backed)
+        const canSend = await (0, rateLimiter_1.checkAndIncrementRateLimit)(maxLimit, campaignId);
+        if (!canSend) {
+            logger_1.logger.warn(`Hourly rate limit reached for job ${job.id}. Rescheduling.`);
+            const ttl = await redis_1.redisConnection.ttl(`hourly_email_limit:${campaignId}`);
+            const delayMs = (ttl > 0 ? ttl : 60) * 1000;
+            // Reschedule job using a unique incremented key signature
+            await (0, bullmq_2.scheduleEmailJob)(`${job.id}-rescheduled-${Date.now()}`, job.data, delayMs);
+            // Mark as queued again in DB
+            await db_1.prisma.emailRecipient.update({
+                where: { id: recipientId },
+                data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.', dispatchStartedAt: null }
+            });
+            return { success: false, reason: 'rate_limit', rescheduled: true };
+        }
+        // 3. Minimum Delay Enforcement (Atomic Lua-backed)
+        const waitTime = await (0, rateLimiter_1.enforceMinimumDelay)(minDelay, campaignId);
+        if (waitTime > 0) {
+            logger_1.logger.info(`Enforcing minimum delay of ${waitTime}ms for job ${job.id}`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        // 4. Send Email
+        try {
+            const info = await (0, email_1.sendEmail)(email, recipient.campaign.subject, recipient.campaign.body);
+            if (info && info.messageId) {
+                smtpMessageId = info.messageId;
+            }
+        }
+        catch (err) {
+            logger_1.logger.error(`Failed to send email to ${email}: ${err.message}`);
+            await (0, rateLimiter_1.decrementRateLimit)(campaignId);
+            throw err;
         }
     }
-    catch (err) {
-        logger_1.logger.error(`Failed to send email to ${email}: ${err.message}`);
-        // Decrement the rate limit counter ONLY if SMTP dispatch failed
-        await (0, rateLimiter_1.decrementRateLimit)();
-        // Throw to let BullMQ handle retry for transient failures
-        throw err;
+    catch (processingError) {
+        // Revert claim on transient error so BullMQ can retry
+        await db_1.prisma.emailRecipient.update({
+            where: { id: recipientId },
+            data: { status: 'QUEUED', dispatchStartedAt: null }
+        });
+        throw processingError;
     }
     // 5. Update Status Post-Send
     // If these operations fail, BullMQ will retry, hit the SENT idempotency check above, and safely retry completion.
@@ -197,6 +205,8 @@ const worker = new bullmq_1.Worker(bullmq_2.QUEUE_NAME, exports.processEmailJob,
     concurrency: parseInt(env_1.env.WORKER_CONCURRENCY, 10),
 });
 worker.on('failed', exports.handleFailedJob);
+// Recover any stale dispatches on startup
+(0, exports.recoverStaleDispatches)().catch(err => logger_1.logger.error('Startup recovery failed:', err));
 process.on('SIGINT', async () => {
     logger_1.logger.info('Shutting down worker...');
     await worker.close();

@@ -8,6 +8,7 @@
     "dev:worker": "nodemon src/worker.ts",
     "build": "tsc",
     "start:api": "node dist/api.js",
+    "prestart": "npx prisma generate",
     "start": "node dist/api.js",
     "start:worker": "node dist/worker.js",
     "test": "vitest run",

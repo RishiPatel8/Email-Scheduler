@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { prisma } from './config/db';
+import { redisConnection } from './config/redis';
 import { exec } from 'child_process';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
@@ -42,6 +43,8 @@ app.get('/api/debug/db', async (req, res) => {
   }
 });
 
+
+
 // Debug endpoint to manually trigger database migrations
 app.get('/api/debug/migrate', (req, res) => {
   exec('node node_modules/prisma/build/index.js migrate deploy', (error, stdout, stderr) => {
@@ -50,6 +53,16 @@ app.get('/api/debug/migrate', (req, res) => {
     }
     res.json({ status: 'success', stdout, stderr });
   });
+});
+
+// Debug endpoint to check Redis connection
+app.get('/api/debug/redis', async (req, res) => {
+  try {
+    const ping = await redisConnection.ping();
+    res.json({ status: 'success', message: 'Redis is connected!', response: ping });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message, stack: error.stack });
+  }
 });
 
 // Routes

@@ -147,10 +147,10 @@ export const createCampaign = async (req: Request, res: Response, next: NextFunc
           data: { status: 'FAILED', error: 'Queue insertion failed: ' + queueErr.message }
         });
 
-        throw new AppError('Failed to schedule campaign due to a queue server error.', 500);
+        throw new AppError(`Failed to schedule campaign due to queue error: ${queueErr.message}`, 500);
       }
     } catch (dbError: any) {
-      throw dbError;
+      throw new AppError(`Database or Prisma error: ${dbError.message}`, 500);
     }
 
     res.status(201).json({

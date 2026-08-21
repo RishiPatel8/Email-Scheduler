@@ -29,6 +29,7 @@ export const errorHandler = (
     statusCode = 400;
     message = 'Validation Error';
   } else {
+    message = err.message || 'Internal Server Error';
     logger.error('Unhandled Error', err);
   }
 

@@ -58,6 +58,7 @@ export default function ComposePage() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
   } = useForm<ComposeFormValues>({
     resolver: zodResolver(composeSchema),
     defaultValues: {
@@ -68,6 +69,7 @@ export default function ComposePage() {
     }
   });
 
+  const initialBody = useRef(getValues('body') || '');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -119,11 +121,28 @@ export default function ComposePage() {
     setIsSubmitting(true);
     const toastId = toast.loading('Scheduling campaign...');
     
+    const isoStartTime = new Date(data.startTime).toISOString();
+    
+    const payload: any = {
+      ...data,
+      startTime: isoStartTime,
+      leads: preview.valid
+    };
+    
+    if (!data.minimumDelay || isNaN(parseInt(data.minimumDelay))) {
+      delete payload.minimumDelay;
+    } else {
+      payload.minimumDelay = parseInt(data.minimumDelay);
+    }
+    
+    if (!data.hourlyLimit || isNaN(parseInt(data.hourlyLimit)) || parseInt(data.hourlyLimit) <= 0) {
+      delete payload.hourlyLimit;
+    } else {
+      payload.hourlyLimit = parseInt(data.hourlyLimit);
+    }
+    
     try {
-      await api.post('/campaigns', {
-        ...data,
-        leads: preview.valid
-      });
+      await api.post('/campaigns', payload);
       toast.success('Campaign scheduled successfully!', { id: toastId });
       router.push('/scheduled');
     } catch {
@@ -307,7 +326,7 @@ export default function ComposePage() {
                 className="w-full bg-transparent outline-none text-[15px] text-gray-900 mb-6 h-full overflow-y-auto min-h-[300px] pb-10 focus:ring-2 focus:ring-[#00A83B]/20 rounded-lg p-2"
                 style={{ cursor: 'text' }}
                 // eslint-disable-next-line react-hooks/incompatible-library
-                dangerouslySetInnerHTML={{ __html: watch('body') || '' }}
+                dangerouslySetInnerHTML={{ __html: initialBody.current }}
               />
               {!watch('body') && (
                 <div className="absolute top-6 left-6 text-[15px] text-gray-400 pointer-events-none">

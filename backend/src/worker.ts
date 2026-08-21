@@ -86,48 +86,53 @@ export const processEmailJob = async (job: Job) => {
   const minDelay = recipient.campaign.minimumDelay ?? parseInt(env.DEFAULT_EMAIL_DELAY_MS, 10);
   const maxLimit = recipient.campaign.hourlyLimit ?? parseInt(env.MAX_EMAILS_PER_HOUR, 10);
 
-  // 2. Hourly Rate Limit Check (Atomic Lua-backed)
-  const canSend = await checkAndIncrementRateLimit(maxLimit);
-  if (!canSend) {
-    logger.warn(`Hourly rate limit reached for job ${job.id}. Rescheduling.`);
-    
-    const ttl = await redisConnection.ttl('hourly_email_limit');
-    const delayMs = (ttl > 0 ? ttl : 60) * 1000;
-    
-    // Reschedule job using a unique incremented key signature
-    await scheduleEmailJob(`${job.id}-rescheduled-${Date.now()}`, job.data, delayMs);
-    
-    // Mark as queued again in DB
-    await prisma.emailRecipient.update({
-      where: { id: recipientId },
-      data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.' }
-    });
-
-    return { success: false, reason: 'rate_limit', rescheduled: true };
-  }
-
-  // 3. Minimum Delay Enforcement (Atomic Lua-backed)
-  const waitTime = await enforceMinimumDelay(minDelay);
-  if (waitTime > 0) {
-    logger.info(`Enforcing minimum delay of ${waitTime}ms for job ${job.id}`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-
-  // 4. Send Email
   let smtpMessageId = '';
   try {
-    const info = await sendEmail(email, recipient.campaign.subject, recipient.campaign.body);
-    if (info && info.messageId) {
-      smtpMessageId = info.messageId;
+    // 2. Hourly Rate Limit Check (Atomic Lua-backed)
+    const canSend = await checkAndIncrementRateLimit(maxLimit, campaignId);
+    if (!canSend) {
+      logger.warn(`Hourly rate limit reached for job ${job.id}. Rescheduling.`);
+      
+      const ttl = await redisConnection.ttl(`hourly_email_limit:${campaignId}`);
+      const delayMs = (ttl > 0 ? ttl : 60) * 1000;
+      
+      // Reschedule job using a unique incremented key signature
+      await scheduleEmailJob(`${job.id}-rescheduled-${Date.now()}`, job.data, delayMs);
+      
+      // Mark as queued again in DB
+      await prisma.emailRecipient.update({
+        where: { id: recipientId },
+        data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.', dispatchStartedAt: null }
+      });
+
+      return { success: false, reason: 'rate_limit', rescheduled: true };
     }
-  } catch (err: any) {
-    logger.error(`Failed to send email to ${email}: ${err.message}`);
-    
-    // Decrement the rate limit counter ONLY if SMTP dispatch failed
-    await decrementRateLimit();
-    
-    // Throw to let BullMQ handle retry for transient failures
-    throw err; 
+
+    // 3. Minimum Delay Enforcement (Atomic Lua-backed)
+    const waitTime = await enforceMinimumDelay(minDelay, campaignId);
+    if (waitTime > 0) {
+      logger.info(`Enforcing minimum delay of ${waitTime}ms for job ${job.id}`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    // 4. Send Email
+    try {
+      const info = await sendEmail(email, recipient.campaign.subject, recipient.campaign.body);
+      if (info && info.messageId) {
+        smtpMessageId = info.messageId;
+      }
+    } catch (err: any) {
+      logger.error(`Failed to send email to ${email}: ${err.message}`);
+      await decrementRateLimit(campaignId);
+      throw err; 
+    }
+  } catch (processingError: any) {
+    // Revert claim on transient error so BullMQ can retry
+    await prisma.emailRecipient.update({
+      where: { id: recipientId },
+      data: { status: 'QUEUED', dispatchStartedAt: null }
+    });
+    throw processingError;
   }
   
   // 5. Update Status Post-Send
@@ -224,6 +229,9 @@ const worker = new Worker(
 );
 
 worker.on('failed', handleFailedJob);
+
+// Recover any stale dispatches on startup
+recoverStaleDispatches().catch(err => logger.error('Startup recovery failed:', err));
 
 process.on('SIGINT', async () => {
   logger.info('Shutting down worker...');

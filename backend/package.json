@@ -4,9 +4,11 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
+    "dev": "nodemon src/index.ts",
     "dev:api": "nodemon src/api.ts",
     "dev:worker": "nodemon src/worker.ts",
     "build": "tsc",
+    "start": "node dist/index.js",
     "start:api": "node dist/api.js",
     "prestart": "node node_modules/prisma/build/index.js generate && node node_modules/prisma/build/index.js migrate deploy",
     "start": "node dist/api.js",

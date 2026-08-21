@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "db:seed": "ts-node src/scripts/seed.ts",
     "test:smtp": "ts-node src/scripts/test-smtp.ts",
-    "test:redis": "ts-node src/scripts/test-redis.ts"
+    "test:redis": "ts-node src/scripts/test-redis.ts",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",

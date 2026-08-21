@@ -85,11 +85,12 @@ app.use('/api/campaigns', campaignRoutes);
 // Error Handling
 app.use(errorHandler);
 
-if (require.main === module) {
-  const port = process.env.PORT || env.PORT || 3000;
-  app.listen(Number(port), '0.0.0.0', () => {
-    logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);
-  });
-}
+// Initialize background worker in the same process unconditionally
+import './worker';
+
+const port = process.env.PORT || env.PORT || 3000;
+app.listen(Number(port), '0.0.0.0', () => {
+  logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);
+});
 
 export default app;

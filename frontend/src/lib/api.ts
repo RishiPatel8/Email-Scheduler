@@ -20,8 +20,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
-        // Use absolute origin path to avoid ESLint next/no-location-assign-relative-destination
-        window.location.href = window.location.origin;
+        // Only redirect if we are not already on the login page to prevent infinite reload loops
+        if (window.location.pathname !== '/') {
+          window.location.href = window.location.origin;
+        }
       }
     }
     return Promise.reject(error);

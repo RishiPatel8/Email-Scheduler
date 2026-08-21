@@ -73,6 +73,9 @@ app.use('/api/campaigns', campaignRoutes);
 app.use(errorHandler);
 
 if (require.main === module) {
+  // Initialize background worker in the same process
+  import('./worker');
+
   const port = process.env.PORT || env.PORT || 3000;
   app.listen(Number(port), '0.0.0.0', () => {
     logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);

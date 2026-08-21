@@ -201,7 +201,7 @@ describe('Campaign Lifecycle Robustness', () => {
       // Check that DB was updated back to QUEUED
       expect(prisma.emailRecipient.update).toHaveBeenCalledWith({
         where: { id: 'rec-limit' },
-        data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.' }
+        data: { status: 'QUEUED', error: 'Rate limit hit, rescheduled.', dispatchStartedAt: null }
       });
       
       // SMTP should never be called

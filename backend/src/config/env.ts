@@ -23,4 +23,20 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:3000')
 });
 
-export const env = envSchema.parse(process.env);
+let parsedEnv: z.infer<typeof envSchema>;
+
+try {
+  parsedEnv = envSchema.parse(process.env);
+} catch (error) {
+  if (error instanceof z.ZodError) {
+    console.error('❌ Invalid or missing environment variables:');
+    error.errors.forEach((err) => {
+      console.error(`  - ${err.path.join('.')}: ${err.message}`);
+    });
+    console.error('\nPlease configure the required variables in your Azure App Service Application Settings.');
+    process.exit(1);
+  }
+  throw error;
+}
+
+export const env = parsedEnv;

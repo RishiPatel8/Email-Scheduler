@@ -26,5 +26,20 @@ const envSchema = zod_1.z.object({
     WORKER_CONCURRENCY: zod_1.z.string().default('5'),
     FRONTEND_URL: zod_1.z.string().default('http://localhost:3000')
 });
-exports.env = envSchema.parse(process.env);
+let parsedEnv;
+try {
+    parsedEnv = envSchema.parse(process.env);
+}
+catch (error) {
+    if (error instanceof zod_1.z.ZodError) {
+        console.error('❌ Invalid or missing environment variables:');
+        error.errors.forEach((err) => {
+            console.error(`  - ${err.path.join('.')}: ${err.message}`);
+        });
+        console.error('\nPlease configure the required variables in your Azure App Service Application Settings.');
+        process.exit(1);
+    }
+    throw error;
+}
+exports.env = parsedEnv;
 //# sourceMappingURL=env.js.map

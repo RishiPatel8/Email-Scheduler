@@ -65,6 +65,19 @@ app.get('/api/debug/redis', async (req, res) => {
   }
 });
 
+import { emailQueue } from './services/bullmq';
+
+// Debug endpoint to check Queue status
+app.get('/api/debug/queue', async (req, res) => {
+  try {
+    const counts = await emailQueue.getJobCounts();
+    const workers = await emailQueue.getWorkers();
+    res.json({ status: 'success', counts, workers: workers.length, workersInfo: workers });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message, stack: error.stack });
+  }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/campaigns', campaignRoutes);
@@ -73,9 +86,6 @@ app.use('/api/campaigns', campaignRoutes);
 app.use(errorHandler);
 
 if (require.main === module) {
-  // Initialize background worker in the same process
-  import('./worker');
-
   const port = process.env.PORT || env.PORT || 3000;
   app.listen(Number(port), '0.0.0.0', () => {
     logger.info(`API Server running on port ${port} and bound to 0.0.0.0`);

@@ -58,6 +58,7 @@ For LocalSetup
 - **MySQL** (Running locally or via Docker)
 - **Redis** (Running locally or via Docker)
 - **Firebase Project** (Client Config & Admin Service Account)
+- **Docker**
 
 ### 2. Environment Configuration
 Populate the `.env` files in both the `frontend` and `backend` directories. Reference the provided `.env.example` files.

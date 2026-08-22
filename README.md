@@ -49,7 +49,7 @@ The Next.js frontend has been crafted with attention to detail. It features a mo
 
 **For Hosting the project :
 I have used Azure for deploying Backend 
-for Frontend is deployed in the Vercel
+for Frontend is deployed in the Vercel 
 Database I have used Aiven
 for Redis deployment Upstash has been used**
 

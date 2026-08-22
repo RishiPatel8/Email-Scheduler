@@ -47,6 +47,14 @@ The Next.js frontend has been crafted with attention to detail. It features a mo
 
 ---
 
+**For Hosting the project :
+I have used Azure for deploying Backend 
+for Frontend is deployed in the Vercel
+Database I have used Aiven
+for Redis deployment Upstash has been used**
+
+For LocalSetup
+
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
@@ -129,6 +137,7 @@ The backend contains a rigorous test suite (`vitest`) specifically targeting con
 cd backend
 npm run test
 ```
+
 
 ### Test Coverage Highlights:
 - **Race Test / Concurrent Execution:** Spawns multiple identical job processors simultaneously to guarantee only one `updateMany` succeeds.
